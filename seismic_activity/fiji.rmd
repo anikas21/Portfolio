@@ -1,0 +1,134 @@
+---
+title: "Seismic Activity in Fiji"
+output: html_notebook
+---
+
+Import Libraries 
+```{r}
+install.packages("klaR")
+install.packages("naivebayes")
+install.packages("rpart")
+install.packages("rpart.plot")
+install.packages("caret")
+```
+
+```{r}
+library(naivebayes)
+library(klaR)
+library(rpart)
+library(rpart.plot)
+library(caret)
+```
+
+Import Data Set 
+```{r}
+set.seed(1234)
+
+data(quakes) # built-in dataset
+quakes <- data.frame(quakes)
+
+summary(quakes)
+str(quakes)
+head(quakes)
+```
+
+GRAPHS 
+```{r}
+#BARPLOT 
+magnitude <- quakes$mag
+table_of_mags <- table(magnitude)
+
+barplot(table_of_mags,
+col = "skyblue",
+main = "Earthquake Magnitudes",
+xlab = "Magnitude",
+ylab = "Number of Earthquakes")
+
+#PIECHART
+proportion_table <- prop.table(table_of_mags)
+
+pie(proportion_table,
+col = rainbow(length(proportion_table)),
+main = "Proportions of Earthquakes")
+
+#DOTPLOT
+plot(magnitude,
+xlab = "Number of Earthquakes",
+ylab = "Magnitude",
+main = "Number of Earthquakes vs. Magnitude")
+
+#BOXPLOT
+boxplot(quakes$mag,
+col = "lightblue",
+main = "Boxplot of Earthquake Magnitudes",
+ylab = "Magnitude")
+```
+
+CONFUSION MATRIX, DECISION TREES 
+```{r}
+set.seed(123) 
+data(quakes) 
+
+#target variable
+quakes$mag_cat <- cut(quakes$mag,breaks = c(-Inf, 4.5, 5.0, Inf), labels = c("Low", "Medium", "High"))
+
+train_idx <- sample(seq_len(nrow(quakes)), size = 0.7 * nrow(quakes))
+train_data <- quakes[train_idx, ]
+test_data <- quakes[-train_idx, ]
+
+#classification tree
+quake_tree <- rpart(mag_cat ~ lat + long + depth + stations, data = train_data, method = "class")
+rpart.plot(quake_tree)
+pred_tree <- predict(quake_tree, test_data, type = "class")
+
+#Confusion matrix 
+confusionMatrix(pred_tree, test_data$mag_cat)
+```
+
+PRUNING TREE
+```{r}
+printcp(quake_tree)
+best_cp <- quake_tree$cptable[which.min(quake_tree$cptable[,"xerror"]),"CP"]
+
+pruned_quake_tree <- prune(quake_tree, cp = best_cp)
+rpart.plot(pruned_quake_tree)
+pruned_pred <- predict(pruned_quake_tree, test_data, type = "class")
+
+#Confusion matrix for pruned tree
+confusionMatrix(pruned_pred, test_data$mag_cat)
+```
+
+Ten fold cross validation 
+```{r}
+cv_ctrl <- trainControl(method = "cv", number = 10)
+
+cv_tree <- train(mag_cat ~ lat + long + depth + stations,
+                 data = train_data,
+                 method = "rpart",
+                 trControl = cv_ctrl)
+
+print(cv_tree)
+rpart.plot(cv_tree$finalModel)
+
+cv_pred <- predict(cv_tree, test_data)
+
+#Confusion matrix
+confusionMatrix(cv_pred, test_data$mag_cat)
+```
+
+NAIVE BAYES 
+```{r}
+library(klaR)
+library(naivebayes)
+library(caret)
+
+nb_model <- NaiveBayes(mag_cat ~ lat + long + depth + stations, data = train_data)
+
+nb_pred <- predict(nb_model, test_data)
+confusionMatrix(nb_pred$class, test_data$mag_cat)
+
+nb_cv <- train(mag_cat ~ lat + long + depth + stations, data = train_data, method = "naive_bayes",trControl = cv_ctrl)
+
+print(nb_cv)
+```
+
