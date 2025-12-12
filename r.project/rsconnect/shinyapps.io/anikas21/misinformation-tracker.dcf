@@ -1,0 +1,10 @@
+name: misinformation-tracker
+title: Misinformation Tracker
+username: anikas21
+account: anikas21
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16263672
+bundleId: 11312643
+url: https://anikas21.shinyapps.io/misinformation-tracker/
+version: 1
